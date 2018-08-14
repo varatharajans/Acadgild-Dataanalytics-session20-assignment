@@ -1,0 +1,1405 @@
+
+
+
+Session 20 Assignment
+Weight Lifting Exercise
+
+
+This human activity recognition research has traditionally focused on discriminating between different activities, i.e. to predict "which" activity was performed at a specific point in time (like with the Daily Living Activities dataset above). The approach we propose for the Weight Lifting Exercises dataset is to investigate "how (well)" an activity was performed by the wearer. The "how (well)" investigation has only received little attention so far, even though it potentially provides useful information for a large variety of applications, such as sports training.
+1. Use the below given data set 
+Data Set 
+2. Perform the below given activities: 
+a. Create classification model using different random forest models 
+b. Verify model goodness of fit 
+c. Apply all the model validation techniques 
+d. Make conclusions 
+e. Plot importance of variables
+
+
+
+setwd("C:/Users/Seshan/Desktop")
+library(readr)
+Weight_lift <- read.csv("Weight lift.csv")
+View(Weight_lift)
+str(Weight_lift)
+data<-Weight_lift
+# load libraries
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(ggplot2)
+library(lattice)
+library(rattle)
+
+library(C50)
+#install.package('devtools') # Only needed if you dont have this installed.
+library(devtools)
+install_github('adam-m-mcelhinney/helpRFunctions')
+library(helpRFunctions)
+names(data)
+dim(data)
+pairs(data[1:10])
+# enable multi-core processing
+library(doParallel)
+cl <- makeCluster(detectCores())
+registerDoParallel()
+set.seed(12345)
+dataTrain<-data[1:4004,]
+dataTest<-data[4005:4024,]
+head(dataTrain)
+head(dataTest)
+indexNA <- as.vector(sapply(dataTrain[,1:158],function(x) {length(which(is.na(x)))!=0}))
+dataTrain <- dataTrain[,!indexNA]
+train_control<- trainControl(method="cv", number=10)
+
+model<- train(classe ~., data=dataTrain,trControl=train_control, method="rf")
+model
+# make predictions
+predictions<- predict(model,dataTrain)
+# append predictions
+pred<- cbind(dataTrain,predictions)
+# summarize results
+confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+confusionMatrix
+#how do we create a cross validation scheme
+control <- trainControl(method = 'repeatedcv',
+                        number = 10,
+                        repeats = 3)
+seed <-7
+metric <- 'Accuracy'
+set.seed(seed)
+mtry <- sqrt(ncol(dataTrain))
+tunegrid <- expand.grid(.mtry=mtry)
+rf_default <- train(pitch_belt~., 
+                    data = dataTrain,
+                    method = 'rf',
+                    metric = 0,
+                    tuneGrid = tunegrid,
+                    trControl = control)
+print(rf_default)
+#-------------------------------
+
+# make predictions
+predictions<- predict(rf_default,dataTest)
+# append predictions
+pred<- cbind(dataTest,predictions)
+# summarize results
+confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+confusionMatrix
+varImp(rf_default)
+#----------------
+# random search for parameters
+control <- trainControl(method = 'repeatedcv',
+                        number = 10,
+                        repeats = 3,
+                        search = 'random')
+# make predictions
+predictions<- predict(rf_default,dataTest)
+
+# append predictions
+pred<- cbind(dataTest,predictions)
+
+# summarize results
+#confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+confusionMatrix
+varImp(random)
+#--------------------
+
+# Grid search
+control <- trainControl(method = 'repeatedcv',
+                      number = 10,
+                       repeats = 3,
+                       search = 'grid')
+set.seed(seed)
+tunegrid <- expand.grid(.mtry=c(1:80))
+mtry <- sqrt(ncol(x))
+rf_gridsearch <- train(~., 
+                      data = dataTrain[1:200,],
+                      method = 'rf',
+                       metric = 0,
+                      tuneGrid = tunegrid,
+                       trControl = control)
+print(rf_gridsearch)
+plot(rf_gridsearch)
+# make predictions
+predictions<- predict(rf_gridsearch,dataTest)
+
+# append predictions
+pred<- cbind(dataTest,predictions)
+
+# summarize results
+confusionMatrix<- confusionMatrix(pred$predictions,pred$pitch_belt)
+confusionMatrix
+varImp(rf_gridsearch)
+
+---------------------------
+  # Boosting
+  #  ---------------------------------------
+# Boosting model requires three things
+
+#1- a loss function to be optimized
+#2- a weak learner to make predictions
+#3- an additive model to add the weak learners to minimize the loss function
+
+# gradient boosting
+control <- trainControl(method = 'repeatedcv',
+                        number = 5,
+                        repeats = 3,
+                        search = 'grid')
+
+seed <- 7
+library(C50)
+set.seed(seed)
+metric <- 'Accuracy'
+gbm_mod <- train(pitch_belt~., 
+                 data = dataTrain,
+                 method = 'gbm',
+                 metric = 0,
+                 trControl = control)
+print(gbm_mod)
+plot(gbm_mod)
+
+summary(gbm_mod)
+# make predictions
+predictions<- predict(gbm_mod,dataTest)
+
+# append predictions
+pred<- cbind(dataTest,predictions)
+
+# summarize results
+confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+confusionMatrix
+
+
+> setwd("C:/Users/Seshan/Desktop")
+> library(readr)
+> Weight_lift <- read.csv("Weight lift.csv")
+> View(Weight_lift)
+> str(Weight_lift)
+'data.frame':	4024 obs. of  158 variables:
+ $ user_name               : Factor w/ 5 levels "adelmo","carlitos",..: 3 3 3 3 3 3 3 3 3 3 ...
+ $ raw_timestamp_part_1    : int  1322489729 1322489729 1322489729 1322489729 1322489729 1322489729 1322489729 1322489729 1322489729 1322489729 ...
+ $ raw_timestamp_part_2    : int  34670 62641 70653 82654 90637 170626 190665 242723 267551 274689 ...
+ $ cvtd_timestamp          : Factor w/ 7 levels "2/12/2011 13:35",..: 2 2 2 2 2 2 2 2 2 2 ...
+ $ new_window              : Factor w/ 2 levels "no","yes": 1 1 1 1 1 1 1 1 1 1 ...
+ $ num_window              : int  1 1 1 1 1 1 1 1 1 1 ...
+ $ roll_belt               : num  3.7 3.66 3.58 3.56 3.57 3.45 3.31 2.91 2.31 2 ...
+ $ pitch_belt              : num  41.6 42.8 43.7 44.4 45.1 45.6 46.2 46.9 47.4 47.7 ...
+ $ yaw_belt                : num  -82.8 -82.5 -82.3 -82.1 -81.9 -81.9 -81.9 -82.2 -82.6 -82.8 ...
+ $ total_accel_belt        : int  3 2 1 1 1 1 3 4 2 3 ...
+ $ kurtosis_roll_belt      : num  -1.04 -1.04 -1.04 -1.04 -1.04 ...
+ $ kurtosis_picth_belt     : num  -0.391 -0.391 -0.391 -0.391 -0.391 ...
+ $ skewness_roll_belt      : num  0.00541 0.00541 0.00541 0.00541 0.00541 ...
+ $ skewness_roll_belt.1    : num  0.0451 0.0451 0.0451 0.0451 0.0451 ...
+ $ max_roll_belt           : num  -4.1 -4.1 -4.1 -4.1 -4.1 -4.1 -4.1 -4.1 -4.1 -4.1 ...
+ $ max_picth_belt          : int  20 20 20 20 20 20 20 20 20 20 ...
+ $ max_yaw_belt            : num  -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 ...
+ $ min_roll_belt           : num  -7.25 -7.25 -7.25 -7.25 -7.25 -7.25 -7.25 -7.25 -7.25 -7.25 ...
+ $ min_pitch_belt          : int  18 18 18 18 18 18 18 18 18 18 ...
+ $ min_yaw_belt            : num  -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 ...
+ $ amplitude_roll_belt     : num  1.34 1.34 1.34 1.34 1.34 ...
+ $ amplitude_pitch_belt    : int  2 2 2 2 2 2 2 2 2 2 ...
+ $ amplitude_yaw_belt      : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ var_total_accel_belt    : num  0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 ...
+ $ avg_roll_belt           : num  122 122 122 122 122 ...
+ $ stddev_roll_belt        : num  0.6 0.6 0.6 0.6 0.6 0.6 0.6 0.6 0.6 0.6 ...
+ $ var_roll_belt           : num  0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 ...
+ $ avg_pitch_belt          : num  25.8 25.8 25.8 25.8 25.8 ...
+ $ stddev_pitch_belt       : num  0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 0.35 ...
+ $ var_pitch_belt          : num  0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 0.1 ...
+ $ avg_yaw_belt            : num  -4.95 -4.95 -4.95 -4.95 -4.95 -4.95 -4.95 -4.95 -4.95 -4.95 ...
+ $ stddev_yaw_belt         : num  0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 ...
+ $ var_yaw_belt            : num  0.17 0.17 0.17 0.17 0.17 0.17 0.17 0.17 0.17 0.17 ...
+ $ gyros_belt_x            : num  2.02 1.96 1.88 1.8 1.77 1.75 1.78 1.75 1.65 1.48 ...
+ $ gyros_belt_y            : num  0.18 0.14 0.08 0.03 0 -0.03 -0.06 -0.06 -0.03 -0.06 ...
+ $ gyros_belt_z            : num  0.02 0.05 0.05 0.08 0.13 0.16 0.15 0.23 0.33 0.21 ...
+ $ accel_belt_x            : int  -3 -2 -2 -6 -4 1 1 2 -1 -18 ...
+ $ accel_belt_y            : int  -18 -13 -6 -5 -9 -9 -24 -36 -19 18 ...
+ $ accel_belt_z            : int  22 16 8 7 0 -5 -8 -9 -7 1 ...
+ $ magnet_belt_x           : int  387 405 409 422 418 432 438 440 443 449 ...
+ $ magnet_belt_y           : int  525 512 511 513 508 510 508 503 507 499 ...
+ $ magnet_belt_z           : int  -267 -254 -244 -221 -208 -189 -176 -163 -140 -132 ...
+ $ roll_arm                : num  132 129 125 120 115 110 104 98.6 93.2 88.5 ...
+ $ pitch_arm               : num  -43.7 -45.3 -46.8 -48.1 -49.1 -49.6 -49.9 -49.7 -49 -48.1 ...
+ $ yaw_arm                 : num  -53.6 -49 -43.7 -38.1 -31.7 -25.8 -18.5 -11.4 -4.49 1.82 ...
+ $ total_accel_arm         : int  38 38 35 35 34 33 29 28 27 22 ...
+ $ var_accel_arm           : num  65.1 65.1 65.1 65.1 65.1 ...
+ $ avg_roll_arm            : num  76.2 76.2 76.2 76.2 76.2 ...
+ $ stddev_roll_arm         : num  16.1 16.1 16.1 16.1 16.1 ...
+ $ var_roll_arm            : num  259 259 259 259 259 ...
+ $ avg_pitch_arm           : num  -10.2 -10.2 -10.2 -10.2 -10.2 ...
+ $ stddev_pitch_arm        : num  10.7 10.7 10.7 10.7 10.7 ...
+ $ var_pitch_arm           : num  114 114 114 114 114 ...
+ $ avg_yaw_arm             : num  19.1 19.1 19.1 19.1 19.1 ...
+ $ stddev_yaw_arm          : num  35.9 35.9 35.9 35.9 35.9 ...
+ $ var_yaw_arm             : num  1287 1287 1287 1287 1287 ...
+ $ gyros_arm_x             : num  2.65 2.79 2.91 3.08 3.2 3.31 3.5 3.53 3.4 3.48 ...
+ $ gyros_arm_y             : num  -0.61 -0.64 -0.69 -0.72 -0.77 -0.83 -0.83 -0.83 -0.83 -0.8 ...
+ $ gyros_arm_z             : num  -0.02 -0.11 -0.15 -0.23 -0.25 -0.3 -0.31 -0.21 -0.11 -0.15 ...
+ $ accel_arm_x             : int  143 146 156 158 163 160 165 153 143 135 ...
+ $ accel_arm_y             : int  30 35 44 52 55 59 67 70 78 96 ...
+ $ accel_arm_z             : int  -346 -339 -307 -305 -288 -274 -225 -218 -205 -134 ...
+ $ magnet_arm_x            : int  556 599 613 646 670 696 721 725 740 741 ...
+ $ magnet_arm_y            : int  -205 -206 -198 -186 -175 -174 -161 -152 -133 -115 ...
+ $ magnet_arm_z            : int  -374 -335 -319 -268 -241 -193 -121 -105 -43 14 ...
+ $ kurtosis_roll_arm       : num  -1.18 -1.18 -1.18 -1.18 -1.18 ...
+ $ kurtosis_picth_arm      : num  -0.969 -0.969 -0.969 -0.969 -0.969 ...
+ $ kurtosis_yaw_arm        : num  -0.87 -0.87 -0.87 -0.87 -0.87 ...
+ $ skewness_roll_arm       : num  0.124 0.124 0.124 0.124 0.124 ...
+ $ skewness_pitch_arm      : num  -0.103 -0.103 -0.103 -0.103 -0.103 ...
+ $ skewness_yaw_arm        : num  0.0598 0.0598 0.0598 0.0598 0.0598 ...
+ $ max_roll_arm            : num  8.45 8.45 8.45 8.45 8.45 8.45 8.45 8.45 8.45 8.45 ...
+ $ max_picth_arm           : num  77.2 77.2 77.2 77.2 77.2 ...
+ $ max_yaw_arm             : int  38 38 38 38 38 38 38 38 38 38 ...
+ $ min_roll_arm            : num  -33.6 -33.6 -33.6 -33.6 -33.6 -33.6 -33.6 -33.6 -33.6 -33.6 ...
+ $ min_pitch_arm           : num  -58.6 -58.6 -58.6 -58.6 -58.6 -58.6 -58.6 -58.6 -58.6 -58.6 ...
+ $ min_yaw_arm             : int  10 10 10 10 10 10 10 10 10 10 ...
+ $ amplitude_roll_arm      : num  36.9 36.9 36.9 36.9 36.9 ...
+ $ amplitude_pitch_arm     : num  122 122 122 122 122 ...
+ $ amplitude_yaw_arm       : int  27 27 27 27 27 27 27 27 27 27 ...
+ $ roll_dumbbell           : num  51.2 55.8 55.5 55.9 55.2 ...
+ $ pitch_dumbbell          : num  11.7 9.65 6.88 11.08 11.43 ...
+ $ yaw_dumbbell            : num  104.3 100.2 101.1 99.8 100.4 ...
+ $ kurtosis_roll_dumbbell  : num  -0.0959 -0.0959 -0.0959 -0.0959 -0.0959 ...
+ $ kurtosis_picth_dumbbell : num  -0.442 -0.442 -0.442 -0.442 -0.442 ...
+ $ skewness_roll_dumbbell  : num  0.0819 0.0819 0.0819 0.0819 0.0819 0.0819 0.0819 0.0819 0.0819 0.0819 ...
+ $ skewness_pitch_dumbbell : num  -0.216 -0.216 -0.216 -0.216 -0.216 -0.216 -0.216 -0.216 -0.216 -0.216 ...
+ $ max_roll_dumbbell       : num  41.9 41.9 41.9 41.9 41.9 ...
+ $ max_picth_dumbbell      : num  133 133 133 133 133 133 133 133 133 133 ...
+ $ max_yaw_dumbbell        : num  -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 ...
+ $ min_roll_dumbbell       : num  -26.8 -26.8 -26.8 -26.8 -26.8 ...
+ $ min_pitch_dumbbell      : num  20.2 20.2 20.2 20.2 20.2 20.2 20.2 20.2 20.2 20.2 ...
+ $ min_yaw_dumbbell        : num  -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 ...
+ $ amplitude_roll_dumbbell : num  55.7 55.7 55.7 55.7 55.7 ...
+ $ amplitude_pitch_dumbbell: num  54.7 54.7 54.7 54.7 54.7 ...
+ $ amplitude_yaw_dumbbell  : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ total_accel_dumbbell    : int  4 4 4 5 4 4 4 4 4 4 ...
+ $ var_accel_dumbbell      : num  2.42 2.42 2.42 2.42 2.42 ...
+ $ avg_roll_dumbbell       : num  -5.12 -5.12 -5.12 -5.12 -5.12 ...
+  [list output truncated]
+> data<-Weight_lift
+> # load libraries
+> library(caret)
+> library(randomForest)
+> library(rpart)
+> library(rpart.plot)
+> library(ggplot2)
+> library(lattice)
+> library(rattle)
+> 
+> library(C50)
+> #install.package('devtools') # Only needed if you dont have this installed.
+> library(devtools)
+> install_github('adam-m-mcelhinney/helpRFunctions')
+Skipping install of 'helpRFunctions' from a github remote, the SHA1 (9eb16e8c) has not changed since last install.
+  Use `force = TRUE` to force installation
+> library(helpRFunctions)
+> names(data)
+  [1] "user_name"                "raw_timestamp_part_1"     "raw_timestamp_part_2"    
+  [4] "cvtd_timestamp"           "new_window"               "num_window"              
+  [7] "roll_belt"                "pitch_belt"               "yaw_belt"                
+ [10] "total_accel_belt"         "kurtosis_roll_belt"       "kurtosis_picth_belt"     
+ [13] "skewness_roll_belt"       "skewness_roll_belt.1"     "max_roll_belt"           
+ [16] "max_picth_belt"           "max_yaw_belt"             "min_roll_belt"           
+ [19] "min_pitch_belt"           "min_yaw_belt"             "amplitude_roll_belt"     
+ [22] "amplitude_pitch_belt"     "amplitude_yaw_belt"       "var_total_accel_belt"    
+ [25] "avg_roll_belt"            "stddev_roll_belt"         "var_roll_belt"           
+ [28] "avg_pitch_belt"           "stddev_pitch_belt"        "var_pitch_belt"          
+ [31] "avg_yaw_belt"             "stddev_yaw_belt"          "var_yaw_belt"            
+ [34] "gyros_belt_x"             "gyros_belt_y"             "gyros_belt_z"            
+ [37] "accel_belt_x"             "accel_belt_y"             "accel_belt_z"            
+ [40] "magnet_belt_x"            "magnet_belt_y"            "magnet_belt_z"           
+ [43] "roll_arm"                 "pitch_arm"                "yaw_arm"                 
+ [46] "total_accel_arm"          "var_accel_arm"            "avg_roll_arm"            
+ [49] "stddev_roll_arm"          "var_roll_arm"             "avg_pitch_arm"           
+ [52] "stddev_pitch_arm"         "var_pitch_arm"            "avg_yaw_arm"             
+ [55] "stddev_yaw_arm"           "var_yaw_arm"              "gyros_arm_x"             
+ [58] "gyros_arm_y"              "gyros_arm_z"              "accel_arm_x"             
+ [61] "accel_arm_y"              "accel_arm_z"              "magnet_arm_x"            
+ [64] "magnet_arm_y"             "magnet_arm_z"             "kurtosis_roll_arm"       
+ [67] "kurtosis_picth_arm"       "kurtosis_yaw_arm"         "skewness_roll_arm"       
+ [70] "skewness_pitch_arm"       "skewness_yaw_arm"         "max_roll_arm"            
+ [73] "max_picth_arm"            "max_yaw_arm"              "min_roll_arm"            
+ [76] "min_pitch_arm"            "min_yaw_arm"              "amplitude_roll_arm"      
+ [79] "amplitude_pitch_arm"      "amplitude_yaw_arm"        "roll_dumbbell"           
+ [82] "pitch_dumbbell"           "yaw_dumbbell"             "kurtosis_roll_dumbbell"  
+ [85] "kurtosis_picth_dumbbell"  "skewness_roll_dumbbell"   "skewness_pitch_dumbbell" 
+ [88] "max_roll_dumbbell"        "max_picth_dumbbell"       "max_yaw_dumbbell"        
+ [91] "min_roll_dumbbell"        "min_pitch_dumbbell"       "min_yaw_dumbbell"        
+ [94] "amplitude_roll_dumbbell"  "amplitude_pitch_dumbbell" "amplitude_yaw_dumbbell"  
+ [97] "total_accel_dumbbell"     "var_accel_dumbbell"       "avg_roll_dumbbell"       
+[100] "stddev_roll_dumbbell"     "var_roll_dumbbell"        "avg_pitch_dumbbell"      
+[103] "stddev_pitch_dumbbell"    "var_pitch_dumbbell"       "avg_yaw_dumbbell"        
+[106] "stddev_yaw_dumbbell"      "var_yaw_dumbbell"         "gyros_dumbbell_x"        
+[109] "gyros_dumbbell_y"         "gyros_dumbbell_z"         "accel_dumbbell_x"        
+[112] "accel_dumbbell_y"         "accel_dumbbell_z"         "magnet_dumbbell_x"       
+[115] "magnet_dumbbell_y"        "magnet_dumbbell_z"        "roll_forearm"            
+[118] "pitch_forearm"            "yaw_forearm"              "kurtosis_roll_forearm"   
+[121] "kurtosis_picth_forearm"   "skewness_roll_forearm"    "skewness_pitch_forearm"  
+[124] "max_roll_forearm"         "max_picth_forearm"        "max_yaw_forearm"         
+[127] "min_roll_forearm"         "min_pitch_forearm"        "min_yaw_forearm"         
+[130] "amplitude_roll_forearm"   "amplitude_pitch_forearm"  "amplitude_yaw_forearm"   
+[133] "total_accel_forearm"      "var_accel_forearm"        "avg_roll_forearm"        
+[136] "stddev_roll_forearm"      "var_roll_forearm"         "avg_pitch_forearm"       
+[139] "stddev_pitch_forearm"     "var_pitch_forearm"        "avg_yaw_forearm"         
+[142] "stddev_yaw_forearm"       "var_yaw_forearm"          "gyros_forearm_x"         
+[145] "gyros_forearm_y"          "gyros_forearm_z"          "accel_forearm_x"         
+[148] "accel_forearm_y"          "accel_forearm_z"          "magnet_forearm_x"        
+[151] "magnet_forearm_y"         "magnet_forearm_z"         "accel_forearm_y.1"       
+[154] "accel_forearm_z.1"        "magnet_forearm_x.1"       "magnet_forearm_y.1"      
+[157] "magnet_forearm_z.1"       "classe"                  
+> dim(data)
+[1] 4024  158
+> pairs(data[1:10])
+
+> # enable multi-core processing
+> library(doParallel)
+> cl <- makeCluster(detectCores())
+> registerDoParallel()
+> set.seed(12345)
+> dataTrain<-data[1:4004,]
+> dataTest<-data[4005:4024,]
+> head(dataTrain)
+  user_name raw_timestamp_part_1 raw_timestamp_part_2   cvtd_timestamp new_window
+1    eurico           1322489729                34670 28/11/2011 14:15         no
+2    eurico           1322489729                62641 28/11/2011 14:15         no
+3    eurico           1322489729                70653 28/11/2011 14:15         no
+4    eurico           1322489729                82654 28/11/2011 14:15         no
+5    eurico           1322489729                90637 28/11/2011 14:15         no
+6    eurico           1322489729               170626 28/11/2011 14:15         no
+  num_window roll_belt pitch_belt yaw_belt total_accel_belt kurtosis_roll_belt
+1          1      3.70       41.6    -82.8                3           -1.03566
+2          1      3.66       42.8    -82.5                2           -1.03566
+3          1      3.58       43.7    -82.3                1           -1.03566
+4          1      3.56       44.4    -82.1                1           -1.03566
+5          1      3.57       45.1    -81.9                1           -1.03566
+6          1      3.45       45.6    -81.9                1           -1.03566
+  kurtosis_picth_belt skewness_roll_belt skewness_roll_belt.1 max_roll_belt
+1            -0.39133           0.005406             0.045115          -4.1
+2            -0.39133           0.005406             0.045115          -4.1
+3            -0.39133           0.005406             0.045115          -4.1
+4            -0.39133           0.005406             0.045115          -4.1
+5            -0.39133           0.005406             0.045115          -4.1
+6            -0.39133           0.005406             0.045115          -4.1
+  max_picth_belt max_yaw_belt min_roll_belt min_pitch_belt min_yaw_belt
+1             20           -1         -7.25             18           -1
+2             20           -1         -7.25             18           -1
+3             20           -1         -7.25             18           -1
+4             20           -1         -7.25             18           -1
+5             20           -1         -7.25             18           -1
+6             20           -1         -7.25             18           -1
+  amplitude_roll_belt amplitude_pitch_belt amplitude_yaw_belt var_total_accel_belt
+1               1.345                    2                  0                  0.3
+2               1.345                    2                  0                  0.3
+3               1.345                    2                  0                  0.3
+4               1.345                    2                  0                  0.3
+5               1.345                    2                  0                  0.3
+6               1.345                    2                  0                  0.3
+  avg_roll_belt stddev_roll_belt var_roll_belt avg_pitch_belt stddev_pitch_belt
+1         121.9              0.6          0.35          25.75              0.35
+2         121.9              0.6          0.35          25.75              0.35
+3         121.9              0.6          0.35          25.75              0.35
+4         121.9              0.6          0.35          25.75              0.35
+5         121.9              0.6          0.35          25.75              0.35
+6         121.9              0.6          0.35          25.75              0.35
+  var_pitch_belt avg_yaw_belt stddev_yaw_belt var_yaw_belt gyros_belt_x gyros_belt_y
+1            0.1        -4.95             0.4         0.17         2.02         0.18
+2            0.1        -4.95             0.4         0.17         1.96         0.14
+3            0.1        -4.95             0.4         0.17         1.88         0.08
+4            0.1        -4.95             0.4         0.17         1.80         0.03
+5            0.1        -4.95             0.4         0.17         1.77         0.00
+6            0.1        -4.95             0.4         0.17         1.75        -0.03
+  gyros_belt_z accel_belt_x accel_belt_y accel_belt_z magnet_belt_x magnet_belt_y
+1         0.02           -3          -18           22           387           525
+2         0.05           -2          -13           16           405           512
+3         0.05           -2           -6            8           409           511
+4         0.08           -6           -5            7           422           513
+5         0.13           -4           -9            0           418           508
+6         0.16            1           -9           -5           432           510
+  magnet_belt_z roll_arm pitch_arm yaw_arm total_accel_arm var_accel_arm avg_roll_arm
+1          -267      132     -43.7   -53.6              38       65.0977     76.22175
+2          -254      129     -45.3   -49.0              38       65.0977     76.22175
+3          -244      125     -46.8   -43.7              35       65.0977     76.22175
+4          -221      120     -48.1   -38.1              35       65.0977     76.22175
+5          -208      115     -49.1   -31.7              34       65.0977     76.22175
+6          -189      110     -49.6   -25.8              33       65.0977     76.22175
+  stddev_roll_arm var_roll_arm avg_pitch_arm stddev_pitch_arm var_pitch_arm
+1         16.1039     259.3599      -10.1695         10.66725      113.7978
+2         16.1039     259.3599      -10.1695         10.66725      113.7978
+3         16.1039     259.3599      -10.1695         10.66725      113.7978
+4         16.1039     259.3599      -10.1695         10.66725      113.7978
+5         16.1039     259.3599      -10.1695         10.66725      113.7978
+6         16.1039     259.3599      -10.1695         10.66725      113.7978
+  avg_yaw_arm stddev_yaw_arm var_yaw_arm gyros_arm_x gyros_arm_y gyros_arm_z
+1     19.0615        35.8809    1287.463        2.65       -0.61       -0.02
+2     19.0615        35.8809    1287.463        2.79       -0.64       -0.11
+3     19.0615        35.8809    1287.463        2.91       -0.69       -0.15
+4     19.0615        35.8809    1287.463        3.08       -0.72       -0.23
+5     19.0615        35.8809    1287.463        3.20       -0.77       -0.25
+6     19.0615        35.8809    1287.463        3.31       -0.83       -0.30
+  accel_arm_x accel_arm_y accel_arm_z magnet_arm_x magnet_arm_y magnet_arm_z
+1         143          30        -346          556         -205         -374
+2         146          35        -339          599         -206         -335
+3         156          44        -307          613         -198         -319
+4         158          52        -305          646         -186         -268
+5         163          55        -288          670         -175         -241
+6         160          59        -274          696         -174         -193
+  kurtosis_roll_arm kurtosis_picth_arm kurtosis_yaw_arm skewness_roll_arm
+1          -1.18224           -0.96912         -0.86977           0.12353
+2          -1.18224           -0.96912         -0.86977           0.12353
+3          -1.18224           -0.96912         -0.86977           0.12353
+4          -1.18224           -0.96912         -0.86977           0.12353
+5          -1.18224           -0.96912         -0.86977           0.12353
+6          -1.18224           -0.96912         -0.86977           0.12353
+  skewness_pitch_arm skewness_yaw_arm max_roll_arm max_picth_arm max_yaw_arm
+1           -0.10319         0.059765         8.45         77.25          38
+2           -0.10319         0.059765         8.45         77.25          38
+3           -0.10319         0.059765         8.45         77.25          38
+4           -0.10319         0.059765         8.45         77.25          38
+5           -0.10319         0.059765         8.45         77.25          38
+6           -0.10319         0.059765         8.45         77.25          38
+  min_roll_arm min_pitch_arm min_yaw_arm amplitude_roll_arm amplitude_pitch_arm
+1        -33.6         -58.6          10             36.945               121.5
+2        -33.6         -58.6          10             36.945               121.5
+3        -33.6         -58.6          10             36.945               121.5
+4        -33.6         -58.6          10             36.945               121.5
+5        -33.6         -58.6          10             36.945               121.5
+6        -33.6         -58.6          10             36.945               121.5
+  amplitude_yaw_arm roll_dumbbell pitch_dumbbell yaw_dumbbell kurtosis_roll_dumbbell
+1                27      51.23554      11.698847    104.26473               -0.09595
+2                27      55.82442       9.645819    100.22805               -0.09595
+3                27      55.46983       6.875244    101.08411               -0.09595
+4                27      55.94486      11.079297     99.78456               -0.09595
+5                27      55.21174      11.426833    100.42258               -0.09595
+6                27      54.24731      14.126636    100.61574               -0.09595
+  kurtosis_picth_dumbbell skewness_roll_dumbbell skewness_pitch_dumbbell
+1                 -0.4422                 0.0819                  -0.216
+2                 -0.4422                 0.0819                  -0.216
+3                 -0.4422                 0.0819                  -0.216
+4                 -0.4422                 0.0819                  -0.216
+5                 -0.4422                 0.0819                  -0.216
+6                 -0.4422                 0.0819                  -0.216
+  max_roll_dumbbell max_picth_dumbbell max_yaw_dumbbell min_roll_dumbbell
+1             41.85                133             -0.1            -26.75
+2             41.85                133             -0.1            -26.75
+3             41.85                133             -0.1            -26.75
+4             41.85                133             -0.1            -26.75
+5             41.85                133             -0.1            -26.75
+6             41.85                133             -0.1            -26.75
+  min_pitch_dumbbell min_yaw_dumbbell amplitude_roll_dumbbell amplitude_pitch_dumbbell
+1               20.2             -0.1                   55.71                    54.74
+2               20.2             -0.1                   55.71                    54.74
+3               20.2             -0.1                   55.71                    54.74
+4               20.2             -0.1                   55.71                    54.74
+5               20.2             -0.1                   55.71                    54.74
+6               20.2             -0.1                   55.71                    54.74
+  amplitude_yaw_dumbbell total_accel_dumbbell var_accel_dumbbell avg_roll_dumbbell
+1                      0                    4            2.41635          -5.11805
+2                      0                    4            2.41635          -5.11805
+3                      0                    4            2.41635          -5.11805
+4                      0                    5            2.41635          -5.11805
+5                      0                    4            2.41635          -5.11805
+6                      0                    4            2.41635          -5.11805
+  stddev_roll_dumbbell var_roll_dumbbell avg_pitch_dumbbell stddev_pitch_dumbbell
+1               17.058           291.001            13.9312               14.1062
+2               17.058           291.001            13.9312               14.1062
+3               17.058           291.001            13.9312               14.1062
+4               17.058           291.001            13.9312               14.1062
+5               17.058           291.001            13.9312               14.1062
+6               17.058           291.001            13.9312               14.1062
+  var_pitch_dumbbell avg_yaw_dumbbell stddev_yaw_dumbbell var_yaw_dumbbell
+1           199.0775          64.7063             13.5747         184.5578
+2           199.0775          64.7063             13.5747         184.5578
+3           199.0775          64.7063             13.5747         184.5578
+4           199.0775          64.7063             13.5747         184.5578
+5           199.0775          64.7063             13.5747         184.5578
+6           199.0775          64.7063             13.5747         184.5578
+  gyros_dumbbell_x gyros_dumbbell_y gyros_dumbbell_z accel_dumbbell_x accel_dumbbell_y
+1            -0.31             0.16             0.08                5               21
+2            -0.31             0.14             0.07                4               22
+3            -0.31             0.16             0.05                3               23
+4            -0.31             0.16             0.07                5               24
+5            -0.31             0.14             0.07                5               23
+6            -0.31             0.14             0.07                6               22
+  accel_dumbbell_z magnet_dumbbell_x magnet_dumbbell_y magnet_dumbbell_z roll_forearm
+1               37              -471               191               277         -111
+2               35              -472               184               281         -112
+3               37              -468               190               275         -114
+4               38              -469               184               285         -115
+5               37              -468               189               292         -117
+6               36              -473               188               278         -118
+  pitch_forearm yaw_forearm kurtosis_roll_forearm kurtosis_picth_forearm
+1          26.5         138              -1.09475               -0.97525
+2          26.2         138              -1.09475               -0.97525
+3          26.0         137              -1.09475               -0.97525
+4          25.8         137              -1.09475               -0.97525
+5          25.5         137              -1.09475               -0.97525
+6          25.1         137              -1.09475               -0.97525
+  skewness_roll_forearm skewness_pitch_forearm max_roll_forearm max_picth_forearm
+1              -0.05065                0.17285             49.6               168
+2              -0.05065                0.17285             49.6               168
+3              -0.05065                0.17285             49.6               168
+4              -0.05065                0.17285             49.6               168
+5              -0.05065                0.17285             49.6               168
+6              -0.05065                0.17285             49.6               168
+  max_yaw_forearm min_roll_forearm min_pitch_forearm min_yaw_forearm
+1            -1.1             4.65            -168.5            -1.1
+2            -1.1             4.65            -168.5            -1.1
+3            -1.1             4.65            -168.5            -1.1
+4            -1.1             4.65            -168.5            -1.1
+5            -1.1             4.65            -168.5            -1.1
+6            -1.1             4.65            -168.5            -1.1
+  amplitude_roll_forearm amplitude_pitch_forearm amplitude_yaw_forearm
+1                   32.2                   341.5                     0
+2                   32.2                   341.5                     0
+3                   32.2                   341.5                     0
+4                   32.2                   341.5                     0
+5                   32.2                   341.5                     0
+6                   32.2                   341.5                     0
+  total_accel_forearm var_accel_forearm avg_roll_forearm stddev_roll_forearm
+1                  30           14.0772         27.85936            45.16342
+2                  31           14.0772         27.85936            45.16342
+3                  32           14.0772         27.85936            45.16342
+4                  33           14.0772         27.85936            45.16342
+5                  34           14.0772         27.85936            45.16342
+6                  36           14.0772         27.85936            45.16342
+  var_roll_forearm avg_pitch_forearm stddev_pitch_forearm var_pitch_forearm
+1         2749.163          25.35597             8.906695          79.33451
+2         2749.163          25.35597             8.906695          79.33451
+3         2749.163          25.35597             8.906695          79.33451
+4         2749.163          25.35597             8.906695          79.33451
+5         2749.163          25.35597             8.906695          79.33451
+6         2749.163          25.35597             8.906695          79.33451
+  avg_yaw_forearm stddev_yaw_forearm var_yaw_forearm gyros_forearm_x gyros_forearm_y
+1        17.09505           74.27584        5541.956           -0.05           -0.37
+2        17.09505           74.27584        5541.956           -0.06           -0.37
+3        17.09505           74.27584        5541.956           -0.05           -0.27
+4        17.09505           74.27584        5541.956            0.02           -0.24
+5        17.09505           74.27584        5541.956            0.08           -0.27
+6        17.09505           74.27584        5541.956            0.14           -0.29
+  gyros_forearm_z accel_forearm_x accel_forearm_y accel_forearm_z magnet_forearm_x
+1           -0.43            -170             155             184            -1160
+2           -0.59            -178             164             182            -1150
+3           -0.72            -182             172             185            -1130
+4           -0.79            -185             182             188            -1120
+5           -0.82            -188             195             188            -1100
+6           -0.82            -208             207             190            -1090
+  magnet_forearm_y magnet_forearm_z accel_forearm_y.1 accel_forearm_z.1
+1             1400             -876               155               184
+2             1410             -871               164               182
+3             1400             -863               172               185
+4             1400             -855               182               188
+5             1400             -843               195               188
+6             1400             -838               207               190
+  magnet_forearm_x.1 magnet_forearm_y.1 magnet_forearm_z.1 classe
+1              -1160               1400               -876      E
+2              -1150               1410               -871      E
+3              -1130               1400               -863      E
+4              -1120               1400               -855      E
+5              -1100               1400               -843      E
+6              -1090               1400               -838      E
+> head(dataTest)
+     user_name raw_timestamp_part_1 raw_timestamp_part_2  cvtd_timestamp new_window
+4005     pedro           1323095020               504350 5/12/2011 14:23         no
+4006     pedro           1323095020               504423 5/12/2011 14:23         no
+4007     pedro           1323095020               504460 5/12/2011 14:23         no
+4008     pedro           1323095020               532277 5/12/2011 14:23         no
+4009     pedro           1323095020               532302 5/12/2011 14:23         no
+4010     pedro           1323095020               572363 5/12/2011 14:23         no
+     num_window roll_belt pitch_belt yaw_belt total_accel_belt kurtosis_roll_belt
+4005         91       122       25.9    -3.54               19           -1.03566
+4006         91       122       25.9    -3.48               19           -1.03566
+4007         91       122       25.8    -3.39               19           -1.03566
+4008         91       122       25.8    -3.33               19           -1.03566
+4009         91       122       25.8    -3.30               19           -1.03566
+4010         91       122       25.8    -3.29               19           -1.03566
+     kurtosis_picth_belt skewness_roll_belt skewness_roll_belt.1 max_roll_belt
+4005            -0.39133           0.005406             0.045115          -4.1
+4006            -0.39133           0.005406             0.045115          -4.1
+4007            -0.39133           0.005406             0.045115          -4.1
+4008            -0.39133           0.005406             0.045115          -4.1
+4009            -0.39133           0.005406             0.045115          -4.1
+4010            -0.39133           0.005406             0.045115          -4.1
+     max_picth_belt max_yaw_belt min_roll_belt min_pitch_belt min_yaw_belt
+4005             20           -1         -7.25             18           -1
+4006             20           -1         -7.25             18           -1
+4007             20           -1         -7.25             18           -1
+4008             20           -1         -7.25             18           -1
+4009             20           -1         -7.25             18           -1
+4010             20           -1         -7.25             18           -1
+     amplitude_roll_belt amplitude_pitch_belt amplitude_yaw_belt var_total_accel_belt
+4005               1.345                    2                  0                  0.3
+4006               1.345                    2                  0                  0.3
+4007               1.345                    2                  0                  0.3
+4008               1.345                    2                  0                  0.3
+4009               1.345                    2                  0                  0.3
+4010               1.345                    2                  0                  0.3
+     avg_roll_belt stddev_roll_belt var_roll_belt avg_pitch_belt stddev_pitch_belt
+4005         121.9              0.6          0.35          25.75              0.35
+4006         121.9              0.6          0.35          25.75              0.35
+4007         121.9              0.6          0.35          25.75              0.35
+4008         121.9              0.6          0.35          25.75              0.35
+4009         121.9              0.6          0.35          25.75              0.35
+4010         121.9              0.6          0.35          25.75              0.35
+     var_pitch_belt avg_yaw_belt stddev_yaw_belt var_yaw_belt gyros_belt_x
+4005            0.1        -4.95             0.4         0.17        -0.39
+4006            0.1        -4.95             0.4         0.17        -0.39
+4007            0.1        -4.95             0.4         0.17        -0.37
+4008            0.1        -4.95             0.4         0.17        -0.39
+4009            0.1        -4.95             0.4         0.17        -0.39
+4010            0.1        -4.95             0.4         0.17        -0.40
+     gyros_belt_y gyros_belt_z accel_belt_x accel_belt_y accel_belt_z magnet_belt_x
+4005        -0.03        -0.48          -39           71         -170            -1
+4006        -0.03        -0.46          -39           69         -172             1
+4007        -0.03        -0.46          -40           68         -170            -4
+4008        -0.03        -0.46          -42           69         -167            -6
+4009        -0.03        -0.46          -42           70         -168            -6
+4010        -0.03        -0.46          -42           72         -171            -4
+     magnet_belt_y magnet_belt_z roll_arm pitch_arm yaw_arm total_accel_arm
+4005           582          -356     83.0      23.1    47.1              23
+4006           587          -358     81.6      22.1    44.5              25
+4007           586          -362     80.2      21.0    41.9              24
+4008           589          -366     78.9      20.0    39.4              26
+4009           590          -368     77.6      18.9    36.7              27
+4010           591          -354     76.5      17.7    34.0              28
+     var_accel_arm avg_roll_arm stddev_roll_arm var_roll_arm avg_pitch_arm
+4005       65.0977     76.22175         16.1039     259.3599      -10.1695
+4006       65.0977     76.22175         16.1039     259.3599      -10.1695
+4007       65.0977     76.22175         16.1039     259.3599      -10.1695
+4008       65.0977     76.22175         16.1039     259.3599      -10.1695
+4009       65.0977     76.22175         16.1039     259.3599      -10.1695
+4010       65.0977     76.22175         16.1039     259.3599      -10.1695
+     stddev_pitch_arm var_pitch_arm avg_yaw_arm stddev_yaw_arm var_yaw_arm gyros_arm_x
+4005         10.66725      113.7978     19.0615        35.8809    1287.463       -2.06
+4006         10.66725      113.7978     19.0615        35.8809    1287.463       -2.06
+4007         10.66725      113.7978     19.0615        35.8809    1287.463       -2.07
+4008         10.66725      113.7978     19.0615        35.8809    1287.463       -2.14
+4009         10.66725      113.7978     19.0615        35.8809    1287.463       -2.14
+4010         10.66725      113.7978     19.0615        35.8809    1287.463       -2.12
+     gyros_arm_y gyros_arm_z accel_arm_x accel_arm_y accel_arm_z magnet_arm_x
+4005        0.55       -0.26         182          28         138          342
+4006        0.56       -0.31         196          23         148          370
+4007        0.51       -0.33         193          18         140          388
+4008        0.48       -0.31         207          21         140          432
+4009        0.43       -0.28         226          12         140          448
+4010        0.37       -0.20         235           9         143          482
+     magnet_arm_y magnet_arm_z kurtosis_roll_arm kurtosis_picth_arm kurtosis_yaw_arm
+4005          280          503          -1.18224           -0.96912         -0.86977
+4006          263          485          -1.18224           -0.96912         -0.86977
+4007          261          486          -1.18224           -0.96912         -0.86977
+4008          249          472          -1.18224           -0.96912         -0.86977
+4009          239          454          -1.18224           -0.96912         -0.86977
+4010          225          437          -1.18224           -0.96912         -0.86977
+     skewness_roll_arm skewness_pitch_arm skewness_yaw_arm max_roll_arm max_picth_arm
+4005           0.12353           -0.10319         0.059765         8.45         77.25
+4006           0.12353           -0.10319         0.059765         8.45         77.25
+4007           0.12353           -0.10319         0.059765         8.45         77.25
+4008           0.12353           -0.10319         0.059765         8.45         77.25
+4009           0.12353           -0.10319         0.059765         8.45         77.25
+4010           0.12353           -0.10319         0.059765         8.45         77.25
+     max_yaw_arm min_roll_arm min_pitch_arm min_yaw_arm amplitude_roll_arm
+4005          38        -33.6         -58.6          10             36.945
+4006          38        -33.6         -58.6          10             36.945
+4007          38        -33.6         -58.6          10             36.945
+4008          38        -33.6         -58.6          10             36.945
+4009          38        -33.6         -58.6          10             36.945
+4010          38        -33.6         -58.6          10             36.945
+     amplitude_pitch_arm amplitude_yaw_arm roll_dumbbell pitch_dumbbell yaw_dumbbell
+4005               121.5                27    -64.335693      34.112879     81.36272
+4006               121.5                27    -40.195925      53.186300     87.56417
+4007               121.5                27     -2.792178      62.646067     94.35153
+4008               121.5                27     10.384733      49.182165    106.61750
+4009               121.5                27     16.647582      22.278218    129.09792
+4010               121.5                27    -14.860425       6.172999    140.97044
+     kurtosis_roll_dumbbell kurtosis_picth_dumbbell skewness_roll_dumbbell
+4005               -0.09595                 -0.4422                 0.0819
+4006               -0.09595                 -0.4422                 0.0819
+4007               -0.09595                 -0.4422                 0.0819
+4008               -0.09595                 -0.4422                 0.0819
+4009               -0.09595                 -0.4422                 0.0819
+4010               -0.09595                 -0.4422                 0.0819
+     skewness_pitch_dumbbell max_roll_dumbbell max_picth_dumbbell max_yaw_dumbbell
+4005                  -0.216             41.85                133             -0.1
+4006                  -0.216             41.85                133             -0.1
+4007                  -0.216             41.85                133             -0.1
+4008                  -0.216             41.85                133             -0.1
+4009                  -0.216             41.85                133             -0.1
+4010                  -0.216             41.85                133             -0.1
+     min_roll_dumbbell min_pitch_dumbbell min_yaw_dumbbell amplitude_roll_dumbbell
+4005            -26.75               20.2             -0.1                   55.71
+4006            -26.75               20.2             -0.1                   55.71
+4007            -26.75               20.2             -0.1                   55.71
+4008            -26.75               20.2             -0.1                   55.71
+4009            -26.75               20.2             -0.1                   55.71
+4010            -26.75               20.2             -0.1                   55.71
+     amplitude_pitch_dumbbell amplitude_yaw_dumbbell total_accel_dumbbell
+4005                    54.74                      0                    9
+4006                    54.74                      0                    7
+4007                    54.74                      0                    7
+4008                    54.74                      0                    9
+4009                    54.74                      0                    9
+4010                    54.74                      0                    8
+     var_accel_dumbbell avg_roll_dumbbell stddev_roll_dumbbell var_roll_dumbbell
+4005            2.41635          -5.11805               17.058           291.001
+4006            2.41635          -5.11805               17.058           291.001
+4007            2.41635          -5.11805               17.058           291.001
+4008            2.41635          -5.11805               17.058           291.001
+4009            2.41635          -5.11805               17.058           291.001
+4010            2.41635          -5.11805               17.058           291.001
+     avg_pitch_dumbbell stddev_pitch_dumbbell var_pitch_dumbbell avg_yaw_dumbbell
+4005            13.9312               14.1062           199.0775          64.7063
+4006            13.9312               14.1062           199.0775          64.7063
+4007            13.9312               14.1062           199.0775          64.7063
+4008            13.9312               14.1062           199.0775          64.7063
+4009            13.9312               14.1062           199.0775          64.7063
+4010            13.9312               14.1062           199.0775          64.7063
+     stddev_yaw_dumbbell var_yaw_dumbbell gyros_dumbbell_x gyros_dumbbell_y
+4005             13.5747         184.5578             0.16            -0.75
+4006             13.5747         184.5578             0.08            -0.79
+4007             13.5747         184.5578             0.03            -0.87
+4008             13.5747         184.5578            -0.02            -0.92
+4009             13.5747         184.5578            -0.02            -0.85
+4010             13.5747         184.5578             0.00            -0.63
+     gyros_dumbbell_z accel_dumbbell_x accel_dumbbell_y accel_dumbbell_z
+4005             0.39               29              -52               63
+4006             0.15               35              -27               53
+4007            -0.02               42               -2               58
+4008             0.11               41                9               76
+4009             0.33               20               15               87
+4010             0.51                5              -12               80
+     magnet_dumbbell_x magnet_dumbbell_y magnet_dumbbell_z roll_forearm pitch_forearm
+4005               494              -550              -105          141          40.9
+4006               501              -554               -91          142          38.1
+4007               514              -539              -104          142          34.3
+4008               515              -533              -108          142          31.4
+4009               526              -525               -98          141          29.2
+4010               537              -517              -108          141          27.0
+     yaw_forearm kurtosis_roll_forearm kurtosis_picth_forearm skewness_roll_forearm
+4005         147              -1.09475               -0.97525              -0.05065
+4006         143              -1.09475               -0.97525              -0.05065
+4007         137              -1.09475               -0.97525              -0.05065
+4008         132              -1.09475               -0.97525              -0.05065
+4009         128              -1.09475               -0.97525              -0.05065
+4010         123              -1.09475               -0.97525              -0.05065
+     skewness_pitch_forearm max_roll_forearm max_picth_forearm max_yaw_forearm
+4005                0.17285             49.6               168            -1.1
+4006                0.17285             49.6               168            -1.1
+4007                0.17285             49.6               168            -1.1
+4008                0.17285             49.6               168            -1.1
+4009                0.17285             49.6               168            -1.1
+4010                0.17285             49.6               168            -1.1
+     min_roll_forearm min_pitch_forearm min_yaw_forearm amplitude_roll_forearm
+4005             4.65            -168.5            -1.1                   32.2
+4006             4.65            -168.5            -1.1                   32.2
+4007             4.65            -168.5            -1.1                   32.2
+4008             4.65            -168.5            -1.1                   32.2
+4009             4.65            -168.5            -1.1                   32.2
+4010             4.65            -168.5            -1.1                   32.2
+     amplitude_pitch_forearm amplitude_yaw_forearm total_accel_forearm
+4005                   341.5                     0                  29
+4006                   341.5                     0                  40
+4007                   341.5                     0                  39
+4008                   341.5                     0                  39
+4009                   341.5                     0                  39
+4010                   341.5                     0                  38
+     var_accel_forearm avg_roll_forearm stddev_roll_forearm var_roll_forearm
+4005           14.0772         27.85936            45.16342         2749.163
+4006           14.0772         27.85936            45.16342         2749.163
+4007           14.0772         27.85936            45.16342         2749.163
+4008           14.0772         27.85936            45.16342         2749.163
+4009           14.0772         27.85936            45.16342         2749.163
+4010           14.0772         27.85936            45.16342         2749.163
+     avg_pitch_forearm stddev_pitch_forearm var_pitch_forearm avg_yaw_forearm
+4005          25.35597             8.906695          79.33451        17.09505
+4006          25.35597             8.906695          79.33451        17.09505
+4007          25.35597             8.906695          79.33451        17.09505
+4008          25.35597             8.906695          79.33451        17.09505
+4009          25.35597             8.906695          79.33451        17.09505
+4010          25.35597             8.906695          79.33451        17.09505
+     stddev_yaw_forearm var_yaw_forearm gyros_forearm_x gyros_forearm_y
+4005           74.27584        5541.956            0.16            3.48
+4006           74.27584        5541.956            0.11            3.36
+4007           74.27584        5541.956            0.21            4.38
+4008           74.27584        5541.956            0.02            3.77
+4009           74.27584        5541.956           -0.35            3.21
+4010           74.27584        5541.956           -0.69            3.58
+     gyros_forearm_z accel_forearm_x accel_forearm_y accel_forearm_z magnet_forearm_x
+4005            3.08              12             269             -98             -704
+4006            2.76             -51             353            -158             -706
+4007            2.03              33             357            -122             -700
+4008            1.74               9             359            -125             -684
+4009            1.44              -9             352            -143             -673
+4010            1.07             -44             335            -153             -652
+     magnet_forearm_y magnet_forearm_z accel_forearm_y.1 accel_forearm_z.1
+4005              398              921               269               -98
+4006              484              923               353              -158
+4007              524              921               357              -122
+4008              589              923               359              -125
+4009              619              935               352              -143
+4010              672              947               335              -153
+     magnet_forearm_x.1 magnet_forearm_y.1 magnet_forearm_z.1 classe
+4005               -704                398                921      C
+4006               -706                484                923      C
+4007               -700                524                921      C
+4008               -684                589                923      C
+4009               -673                619                935      C
+4010               -652                672                947      C
+
+> indexNA <- as.vector(sapply(dataTrain[,1:158],function(x) {length(which(is.na(x)))!=0}))
+> dataTrain <- dataTrain[,!indexNA]
+> train_control<- trainControl(method="cv", number=10)
+> 
+> model<- train(classe ~., data=dataTrain,trControl=train_control, method="rf")
+> model
+Random Forest 
+
+4004 samples
+ 157 predictor
+   5 classes: 'A', 'B', 'C', 'D', 'E' 
+
+No pre-processing
+Resampling: Cross-Validated (10 fold) 
+Summary of sample sizes: 3604, 3604, 3604, 3604, 3603, 3603, ... 
+Resampling results across tuning parameters:
+
+  mtry  Accuracy   Kappa    
+    2   0.9730274  0.9617679
+   83   1.0000000  1.0000000
+  165   0.9990006  0.9985890
+
+Accuracy was used to select the optimal model using the largest value.
+The final value used for the model was mtry = 83.
+> # make predictions
+> predictions<- predict(model,dataTrain)
+> # append predictions
+> pred<- cbind(dataTrain,predictions)
+> # summarize results
+> confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+> confusionMatrix
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1365    0    0    0    0
+         B    0  901    0    0    0
+         C    0    0   92    0    0
+         D    0    0    0  276    0
+         E    0    0    0    0 1370
+
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9991, 1)
+    No Information Rate : 0.3422     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000    1.000  1.00000  1.00000   1.0000
+Specificity            1.0000    1.000  1.00000  1.00000   1.0000
+Pos Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Neg Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Prevalence             0.3409    0.225  0.02298  0.06893   0.3422
+Detection Rate         0.3409    0.225  0.02298  0.06893   0.3422
+Detection Prevalence   0.3409    0.225  0.02298  0.06893   0.3422
+Balanced Accuracy      1.0000    1.000  1.00000  1.00000   1.0000
+> #how do we create a cross validation scheme
+> control <- trainControl(method = 'repeatedcv',
++                         number = 10,
++                         repeats = 3)
+> seed <-7
+> metric <- 'Accuracy'
+> set.seed(seed)
+> mtry <- sqrt(ncol(dataTrain))
+> tunegrid <- expand.grid(.mtry=mtry)
+> rf_default <- train(pitch_belt~., 
++                     data = dataTrain,
++                     method = 'rf',
++                     metric = 0,
++                     tuneGrid = tunegrid,
++                     trControl = control)
+Warning message:
+In train.default(x, y, weights = w, ...) :
+  The metric "0" was not in the result set. RMSE will be used instead.
+> print(rf_default)
+Random Forest 
+
+4004 samples
+ 157 predictor
+
+No pre-processing
+Resampling: Cross-Validated (10 fold, repeated 3 times) 
+Summary of sample sizes: 3602, 3603, 3603, 3603, 3605, 3604, ... 
+Resampling results:
+
+  RMSE       Rsquared   MAE      
+  0.3719505  0.9996205  0.1836054
+
+Tuning parameter 'mtry' was held constant at a value of 12.56981
+> #-------------------------------
+> 
+> # make predictions
+> predictions<- predict(rf_default,dataTest)
+> # append predictions
+> pred<- cbind(dataTest,predictions)
+> # summarize results
+> confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+Error: `data` and `reference` should be factors with the same levels.
+> confusionMatrix
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1365    0    0    0    0
+         B    0  901    0    0    0
+         C    0    0   92    0    0
+         D    0    0    0  276    0
+         E    0    0    0    0 1370
+
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9991, 1)
+    No Information Rate : 0.3422     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000    1.000  1.00000  1.00000   1.0000
+Specificity            1.0000    1.000  1.00000  1.00000   1.0000
+Pos Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Neg Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Prevalence             0.3409    0.225  0.02298  0.06893   0.3422
+Detection Rate         0.3409    0.225  0.02298  0.06893   0.3422
+Detection Prevalence   0.3409    0.225  0.02298  0.06893   0.3422
+Balanced Accuracy      1.0000    1.000  1.00000  1.00000   1.0000
+> varImp(rf_default)
+Error in varImp[, "%IncMSE"] : subscript out of bounds
+Called from: data.frame(Overall = varImp[, "%IncMSE"])
+Browse[1]> #----------------
+Browse[1]> # random search for parameters
+Browse[1]> control <- trainControl(method = 'repeatedcv',
++                         number = 10,
++                         repeats = 3,
++                         search = 'random')
+Browse[1]> # make predictions
+Browse[1]> predictions<- predict(rf_default,dataTest)
+Browse[1]> 
+> # append predictions
+> pred<- cbind(dataTest,predictions)
+> 
+> # summarize results
+> confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+Error: `data` and `reference` should be factors with the same levels.
+> confusionMatrix
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1365    0    0    0    0
+         B    0  901    0    0    0
+         C    0    0   92    0    0
+         D    0    0    0  276    0
+         E    0    0    0    0 1370
+
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9991, 1)
+    No Information Rate : 0.3422     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000    1.000  1.00000  1.00000   1.0000
+Specificity            1.0000    1.000  1.00000  1.00000   1.0000
+Pos Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Neg Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Prevalence             0.3409    0.225  0.02298  0.06893   0.3422
+Detection Rate         0.3409    0.225  0.02298  0.06893   0.3422
+Detection Prevalence   0.3409    0.225  0.02298  0.06893   0.3422
+Balanced Accuracy      1.0000    1.000  1.00000  1.00000   1.0000
+> varImp(random)
+Error in varImp(random) : object 'random' not found
+> #--------------------
+> #--------------------------------------------------------------
+> # Grid search
+> control <- trainControl(method = 'repeatedcv',
++                         number = 10,
++                         repeats = 3,
++                         search = 'grid')
+> set.seed(seed)
+> tunegrid <- expand.grid(.mtry=c(1:80))
+> #mtry <- sqrt(ncol(x))
+> rf_gridsearch <- train(~., 
++                        data = dataTrain[1:200,],
++                        method = 'rf',
++                        metric = metric,
++                        tuneGrid = tunegrid,
++                        trControl = control)
+Error: Please make sure `y` is a factor or numeric value.
+> print(rf_gridsearch)
+Error in print(rf_gridsearch) : object 'rf_gridsearch' not found
+> plot(rf_gridsearch)
+Error in plot(rf_gridsearch) : object 'rf_gridsearch' not found
+> # make predictions
+> predictions<- predict(rf_gridsearch,dataTest)
+Error in predict(rf_gridsearch, dataTest) : 
+  object 'rf_gridsearch' not found
+> 
+> # append predictions
+> pred<- cbind(dataTest,predictions)
+> 
+> # summarize results
+> confusionMatrix<- confusionMatrix(pred$predictions,pred$pitch_belt)
+Error: `data` and `reference` should be factors with the same levels.
+> confusionMatrix
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1365    0    0    0    0
+         B    0  901    0    0    0
+         C    0    0   92    0    0
+         D    0    0    0  276    0
+         E    0    0    0    0 1370
+
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9991, 1)
+    No Information Rate : 0.3422     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000    1.000  1.00000  1.00000   1.0000
+Specificity            1.0000    1.000  1.00000  1.00000   1.0000
+Pos Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Neg Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Prevalence             0.3409    0.225  0.02298  0.06893   0.3422
+Detection Rate         0.3409    0.225  0.02298  0.06893   0.3422
+Detection Prevalence   0.3409    0.225  0.02298  0.06893   0.3422
+Balanced Accuracy      1.0000    1.000  1.00000  1.00000   1.0000
+> varImp(rf_gridsearch)
+Error in varImp(rf_gridsearch) : object 'rf_gridsearch' not found
+> 
+> ---------------------------
++   # Boosting
++   #  ---------------------------------------
++ # Boosting model requires three things
++ 
++ #1- a loss function to be optimized
++ #2- a weak learner to make predictions
++ #3- an additive model to add the weak learners to minimize the loss function
++ 
++ # gradient boosting
++ control <- trainControl(method = 'repeatedcv',
++                         number = 5,
++                         repeats = 3,
++                         search = 'grid')
+Error in -`*tmp*` : invalid argument to unary operator
+> 
+> seed <- 7
+> library(C50)
+> set.seed(seed)
+> metric <- 'Accuracy'
+> gbm_mod <- train(pitch_belt~., 
++                  data = dataTrain,
++                  method = 'gbm',
++                  metric = 0,
++                  trControl = control)
+Iter   TrainDeviance   ValidDeviance   StepSize   Improve
+     1      290.4643             nan     0.1000   66.8385
+     2      240.0107             nan     0.1000   49.7536
+     3      199.7165             nan     0.1000   39.9944
+     4      166.7692             nan     0.1000   31.6237
+     5      138.7180             nan     0.1000   27.8200
+     6      117.1658             nan     0.1000   21.8218
+     7       99.0041             nan     0.1000   17.7844
+     8       84.2149             nan     0.1000   13.7951
+     9       71.1916             nan     0.1000   12.5779
+    10       60.7509             nan     0.1000   10.4406
+    20       16.9581             nan     0.1000    2.0061
+    40        4.0588             nan     0.1000    0.1219
+    60        2.5921             nan     0.1000    0.0084
+    80        2.1022             nan     0.1000   -0.0069
+   100        1.7142             nan     0.1000   -0.0182
+   120        1.5353             nan     0.1000   -0.0081
+   140        1.2641             nan     0.1000    0.0052
+   150        1.2063             nan     0.1000    0.0001
+
+Warning messages:
+1: In train.default(x, y, weights = w, ...) :
+  The metric "0" was not in the result set. RMSE will be used instead.
+2: In (function (x, y, offset = NULL, misc = NULL, distribution = "bernoulli",  :
+  variable 30: amplitude_yaw_belt has no variation.
+3: In (function (x, y, offset = NULL, misc = NULL, distribution = "bernoulli",  :
+  variable 103: amplitude_yaw_dumbbell has no variation.
+4: In (function (x, y, offset = NULL, misc = NULL, distribution = "bernoulli",  :
+  variable 139: amplitude_yaw_forearm has no variation.
+> print(gbm_mod)
+Stochastic Gradient Boosting 
+
+4004 samples
+ 157 predictor
+
+No pre-processing
+Resampling: Cross-Validated (10 fold, repeated 3 times) 
+Summary of sample sizes: 3602, 3603, 3603, 3603, 3605, 3604, ... 
+Resampling results across tuning parameters:
+
+  interaction.depth  n.trees  RMSE      Rsquared   MAE      
+  1                   50      3.870491  0.9708972  2.0739488
+  1                  100      2.518277  0.9818947  1.1065126
+  1                  150      2.258849  0.9850289  0.9958785
+  2                   50      2.183970  0.9866430  1.0364026
+  2                  100      1.662759  0.9916854  0.8202113
+  2                  150      1.485456  0.9934375  0.7464795
+  3                   50      1.950370  0.9886048  0.9201246
+  3                  100      1.529421  0.9928336  0.7607945
+  3                  150      1.330676  0.9946265  0.6793264
+
+Tuning parameter 'shrinkage' was held constant at a value of 0.1
+Tuning
+ parameter 'n.minobsinnode' was held constant at a value of 10
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were n.trees = 150, interaction.depth =
+ 3, shrinkage = 0.1 and n.minobsinnode = 10.
+> plot(gbm_mod)
+> 
+> summary(gbm_mod)
+                                                          var      rel.inf
+accel_belt_x                                     accel_belt_x 5.294894e+01
+user_namecarlitos                           user_namecarlitos 2.264130e+01
+yaw_belt                                             yaw_belt 1.009582e+01
+magnet_belt_z                                   magnet_belt_z 3.195192e+00
+roll_belt                                           roll_belt 2.097407e+00
+magnet_belt_x                                   magnet_belt_x 1.915681e+00
+magnet_belt_y                                   magnet_belt_y 1.262021e+00
+user_nameeurico                               user_nameeurico 9.356612e-01
+accel_forearm_z                               accel_forearm_z 8.031061e-01
+yaw_dumbbell                                     yaw_dumbbell 6.542763e-01
+magnet_dumbbell_z                           magnet_dumbbell_z 5.525906e-01
+roll_arm                                             roll_arm 4.706543e-01
+magnet_forearm_y                             magnet_forearm_y 4.194178e-01
+raw_timestamp_part_1                     raw_timestamp_part_1 4.174086e-01
+accel_dumbbell_y                             accel_dumbbell_y 3.929518e-01
+total_accel_belt                             total_accel_belt 2.065530e-01
+classeE                                               classeE 1.635014e-01
+gyros_belt_x                                     gyros_belt_x 7.771816e-02
+gyros_belt_z                                     gyros_belt_z 7.088366e-02
+magnet_forearm_z                             magnet_forearm_z 6.476310e-02
+gyros_dumbbell_z                             gyros_dumbbell_z 6.476114e-02
+magnet_dumbbell_y                           magnet_dumbbell_y 6.082279e-02
+accel_arm_y                                       accel_arm_y 4.211095e-02
+magnet_forearm_x                             magnet_forearm_x 3.649721e-02
+gyros_arm_x                                       gyros_arm_x 3.524758e-02
+raw_timestamp_part_2                     raw_timestamp_part_2 3.187452e-02
+magnet_arm_y                                     magnet_arm_y 2.913115e-02
+roll_forearm                                     roll_forearm 2.691063e-02
+accel_belt_y                                     accel_belt_y 2.612166e-02
+gyros_belt_y                                     gyros_belt_y 2.610858e-02
+accel_forearm_x                               accel_forearm_x 2.591538e-02
+yaw_forearm                                       yaw_forearm 2.342590e-02
+magnet_arm_x                                     magnet_arm_x 2.176473e-02
+roll_dumbbell                                   roll_dumbbell 1.994693e-02
+gyros_dumbbell_y                             gyros_dumbbell_y 1.606333e-02
+accel_dumbbell_z                             accel_dumbbell_z 1.393099e-02
+accel_arm_z                                       accel_arm_z 1.171088e-02
+pitch_forearm                                   pitch_forearm 1.000282e-02
+magnet_dumbbell_x                           magnet_dumbbell_x 9.832274e-03
+gyros_arm_z                                       gyros_arm_z 9.797342e-03
+gyros_forearm_y                               gyros_forearm_y 8.829820e-03
+yaw_arm                                               yaw_arm 8.821700e-03
+accel_belt_z                                     accel_belt_z 6.208694e-03
+cvtd_timestamp5/12/2011 14:22   cvtd_timestamp5/12/2011 14:22 6.063530e-03
+accel_dumbbell_x                             accel_dumbbell_x 5.853397e-03
+accel_arm_x                                       accel_arm_x 5.649238e-03
+total_accel_dumbbell                     total_accel_dumbbell 4.196944e-03
+gyros_forearm_z                               gyros_forearm_z 4.185309e-03
+accel_forearm_y                               accel_forearm_y 3.517185e-03
+pitch_dumbbell                                 pitch_dumbbell 3.131461e-03
+gyros_forearm_x                               gyros_forearm_x 2.607342e-03
+gyros_arm_y                                       gyros_arm_y 2.402347e-03
+total_accel_arm                               total_accel_arm 2.323679e-03
+total_accel_forearm                       total_accel_forearm 1.821801e-03
+gyros_dumbbell_x                             gyros_dumbbell_x 1.812110e-03
+pitch_arm                                           pitch_arm 1.803214e-03
+min_pitch_forearm                           min_pitch_forearm 1.147246e-03
+var_yaw_belt                                     var_yaw_belt 1.011198e-03
+magnet_arm_z                                     magnet_arm_z 7.885704e-04
+user_namejeremy                               user_namejeremy 0.000000e+00
+user_namepedro                                 user_namepedro 0.000000e+00
+cvtd_timestamp28/11/2011 14:15 cvtd_timestamp28/11/2011 14:15 0.000000e+00
+cvtd_timestamp30/11/2011 17:12 cvtd_timestamp30/11/2011 17:12 0.000000e+00
+cvtd_timestamp5/12/2011 11:23   cvtd_timestamp5/12/2011 11:23 0.000000e+00
+cvtd_timestamp5/12/2011 11:25   cvtd_timestamp5/12/2011 11:25 0.000000e+00
+cvtd_timestamp5/12/2011 14:23   cvtd_timestamp5/12/2011 14:23 0.000000e+00
+new_windowyes                                   new_windowyes 0.000000e+00
+num_window                                         num_window 0.000000e+00
+kurtosis_roll_belt                         kurtosis_roll_belt 0.000000e+00
+kurtosis_picth_belt                       kurtosis_picth_belt 0.000000e+00
+skewness_roll_belt                         skewness_roll_belt 0.000000e+00
+skewness_roll_belt.1                     skewness_roll_belt.1 0.000000e+00
+max_roll_belt                                   max_roll_belt 0.000000e+00
+max_picth_belt                                 max_picth_belt 0.000000e+00
+max_yaw_belt                                     max_yaw_belt 0.000000e+00
+min_roll_belt                                   min_roll_belt 0.000000e+00
+min_pitch_belt                                 min_pitch_belt 0.000000e+00
+min_yaw_belt                                     min_yaw_belt 0.000000e+00
+amplitude_roll_belt                       amplitude_roll_belt 0.000000e+00
+amplitude_pitch_belt                     amplitude_pitch_belt 0.000000e+00
+amplitude_yaw_belt                         amplitude_yaw_belt 0.000000e+00
+var_total_accel_belt                     var_total_accel_belt 0.000000e+00
+avg_roll_belt                                   avg_roll_belt 0.000000e+00
+stddev_roll_belt                             stddev_roll_belt 0.000000e+00
+var_roll_belt                                   var_roll_belt 0.000000e+00
+avg_pitch_belt                                 avg_pitch_belt 0.000000e+00
+stddev_pitch_belt                           stddev_pitch_belt 0.000000e+00
+var_pitch_belt                                 var_pitch_belt 0.000000e+00
+avg_yaw_belt                                     avg_yaw_belt 0.000000e+00
+stddev_yaw_belt                               stddev_yaw_belt 0.000000e+00
+var_accel_arm                                   var_accel_arm 0.000000e+00
+avg_roll_arm                                     avg_roll_arm 0.000000e+00
+stddev_roll_arm                               stddev_roll_arm 0.000000e+00
+var_roll_arm                                     var_roll_arm 0.000000e+00
+avg_pitch_arm                                   avg_pitch_arm 0.000000e+00
+stddev_pitch_arm                             stddev_pitch_arm 0.000000e+00
+var_pitch_arm                                   var_pitch_arm 0.000000e+00
+avg_yaw_arm                                       avg_yaw_arm 0.000000e+00
+stddev_yaw_arm                                 stddev_yaw_arm 0.000000e+00
+var_yaw_arm                                       var_yaw_arm 0.000000e+00
+kurtosis_roll_arm                           kurtosis_roll_arm 0.000000e+00
+kurtosis_picth_arm                         kurtosis_picth_arm 0.000000e+00
+kurtosis_yaw_arm                             kurtosis_yaw_arm 0.000000e+00
+skewness_roll_arm                           skewness_roll_arm 0.000000e+00
+skewness_pitch_arm                         skewness_pitch_arm 0.000000e+00
+skewness_yaw_arm                             skewness_yaw_arm 0.000000e+00
+max_roll_arm                                     max_roll_arm 0.000000e+00
+max_picth_arm                                   max_picth_arm 0.000000e+00
+max_yaw_arm                                       max_yaw_arm 0.000000e+00
+min_roll_arm                                     min_roll_arm 0.000000e+00
+min_pitch_arm                                   min_pitch_arm 0.000000e+00
+min_yaw_arm                                       min_yaw_arm 0.000000e+00
+amplitude_roll_arm                         amplitude_roll_arm 0.000000e+00
+amplitude_pitch_arm                       amplitude_pitch_arm 0.000000e+00
+amplitude_yaw_arm                           amplitude_yaw_arm 0.000000e+00
+kurtosis_roll_dumbbell                 kurtosis_roll_dumbbell 0.000000e+00
+kurtosis_picth_dumbbell               kurtosis_picth_dumbbell 0.000000e+00
+skewness_roll_dumbbell                 skewness_roll_dumbbell 0.000000e+00
+skewness_pitch_dumbbell               skewness_pitch_dumbbell 0.000000e+00
+max_roll_dumbbell                           max_roll_dumbbell 0.000000e+00
+max_picth_dumbbell                         max_picth_dumbbell 0.000000e+00
+max_yaw_dumbbell                             max_yaw_dumbbell 0.000000e+00
+min_roll_dumbbell                           min_roll_dumbbell 0.000000e+00
+min_pitch_dumbbell                         min_pitch_dumbbell 0.000000e+00
+min_yaw_dumbbell                             min_yaw_dumbbell 0.000000e+00
+amplitude_roll_dumbbell               amplitude_roll_dumbbell 0.000000e+00
+amplitude_pitch_dumbbell             amplitude_pitch_dumbbell 0.000000e+00
+amplitude_yaw_dumbbell                 amplitude_yaw_dumbbell 0.000000e+00
+var_accel_dumbbell                         var_accel_dumbbell 0.000000e+00
+avg_roll_dumbbell                           avg_roll_dumbbell 0.000000e+00
+stddev_roll_dumbbell                     stddev_roll_dumbbell 0.000000e+00
+var_roll_dumbbell                           var_roll_dumbbell 0.000000e+00
+avg_pitch_dumbbell                         avg_pitch_dumbbell 0.000000e+00
+stddev_pitch_dumbbell                   stddev_pitch_dumbbell 0.000000e+00
+var_pitch_dumbbell                         var_pitch_dumbbell 0.000000e+00
+avg_yaw_dumbbell                             avg_yaw_dumbbell 0.000000e+00
+stddev_yaw_dumbbell                       stddev_yaw_dumbbell 0.000000e+00
+var_yaw_dumbbell                             var_yaw_dumbbell 0.000000e+00
+kurtosis_roll_forearm                   kurtosis_roll_forearm 0.000000e+00
+kurtosis_picth_forearm                 kurtosis_picth_forearm 0.000000e+00
+skewness_roll_forearm                   skewness_roll_forearm 0.000000e+00
+skewness_pitch_forearm                 skewness_pitch_forearm 0.000000e+00
+max_roll_forearm                             max_roll_forearm 0.000000e+00
+max_picth_forearm                           max_picth_forearm 0.000000e+00
+max_yaw_forearm                               max_yaw_forearm 0.000000e+00
+min_roll_forearm                             min_roll_forearm 0.000000e+00
+min_yaw_forearm                               min_yaw_forearm 0.000000e+00
+amplitude_roll_forearm                 amplitude_roll_forearm 0.000000e+00
+amplitude_pitch_forearm               amplitude_pitch_forearm 0.000000e+00
+amplitude_yaw_forearm                   amplitude_yaw_forearm 0.000000e+00
+var_accel_forearm                           var_accel_forearm 0.000000e+00
+avg_roll_forearm                             avg_roll_forearm 0.000000e+00
+stddev_roll_forearm                       stddev_roll_forearm 0.000000e+00
+var_roll_forearm                             var_roll_forearm 0.000000e+00
+avg_pitch_forearm                           avg_pitch_forearm 0.000000e+00
+stddev_pitch_forearm                     stddev_pitch_forearm 0.000000e+00
+var_pitch_forearm                           var_pitch_forearm 0.000000e+00
+avg_yaw_forearm                               avg_yaw_forearm 0.000000e+00
+stddev_yaw_forearm                         stddev_yaw_forearm 0.000000e+00
+var_yaw_forearm                               var_yaw_forearm 0.000000e+00
+accel_forearm_y.1                           accel_forearm_y.1 0.000000e+00
+accel_forearm_z.1                           accel_forearm_z.1 0.000000e+00
+magnet_forearm_x.1                         magnet_forearm_x.1 0.000000e+00
+magnet_forearm_y.1                         magnet_forearm_y.1 0.000000e+00
+magnet_forearm_z.1                         magnet_forearm_z.1 0.000000e+00
+classeB                                               classeB 0.000000e+00
+classeC                                               classeC 0.000000e+00
+classeD                                               classeD 0.000000e+00
+> # make predictions
+> predictions<- predict(gbm_mod,dataTest)
+> 
+> # append predictions
+> pred<- cbind(dataTest,predictions)
+> 
+> # summarize results
+> confusionMatrix<- confusionMatrix(pred$predictions,pred$classe)
+Error: `data` and `reference` should be factors with the same levels.
+> confusionMatrix
+Confusion Matrix and Statistics
+
+          Reference
+Prediction    A    B    C    D    E
+         A 1365    0    0    0    0
+         B    0  901    0    0    0
+         C    0    0   92    0    0
+         D    0    0    0  276    0
+         E    0    0    0    0 1370
+
+Overall Statistics
+                                     
+               Accuracy : 1          
+                 95% CI : (0.9991, 1)
+    No Information Rate : 0.3422     
+    P-Value [Acc > NIR] : < 2.2e-16  
+                                     
+                  Kappa : 1          
+ Mcnemar's Test P-Value : NA         
+
+Statistics by Class:
+
+                     Class: A Class: B Class: C Class: D Class: E
+Sensitivity            1.0000    1.000  1.00000  1.00000   1.0000
+Specificity            1.0000    1.000  1.00000  1.00000   1.0000
+Pos Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Neg Pred Value         1.0000    1.000  1.00000  1.00000   1.0000
+Prevalence             0.3409    0.225  0.02298  0.06893   0.3422
+Detection Rate         0.3409    0.225  0.02298  0.06893   0.3422
+Detection Prevalence   0.3409    0.225  0.02298  0.06893   0.3422
+Balanced Accuracy      1.0000    1.000  1.00000  1.00000   1.0000
+
+
+
+
+
+
+
